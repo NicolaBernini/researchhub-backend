@@ -52,6 +52,7 @@ from user.models import (
     Major,
     Verification,
     Follow,
+    Gatekeeper
 )
 from user.permissions import UpdateAuthor, Censor
 from user.utils import reset_latest_acitvity_cache
@@ -618,7 +619,17 @@ class UserViewSet(viewsets.ModelViewSet):
 
         token = tokens.first()
         user = token.user
-        user_info = f'{user.id}-{user.email}'.encode('utf-8')
+        user_email = user.email
+
+        # Temporary gatekeeping for JupyterHub
+        gatekeeper = Gatekeeper.objects.filter(
+            email=user_email,
+            type='JUPYTER'
+        )
+        if not gatekeeper.exists():
+            return Response(status=404)
+
+        user_info = f'{user.id}-{user_email}'.encode('utf-8')
         hashed_info = sha1(user_info)
         return Response(hashed_info.hexdigest(), status=200)
 
