@@ -12,6 +12,7 @@ from django.utils.decorators import method_decorator
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.authtoken.models import Token
 from rest_framework import status, viewsets
 from rest_framework.utils.urls import replace_query_param
 from rest_framework.permissions import (
@@ -604,6 +605,22 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(serialized.data, status=200)
         else:
             raise Exception('Sift verification signature mismatch')
+
+    @action(
+        detail=True,
+        methods=[RequestMethods.POST],
+        permission_classes=[AllowAny]
+    )
+    def get_jupyterhub_user(self, request, pk=None):
+        tokens = Token.objects.filter(key=pk)
+        if not tokens.exists():
+            return Response(status=404)
+
+        token = tokens.first()
+        user = token.user
+        user_info = f'{user.id}-{user.email}'.encode('utf-8')
+        hashed_info = sha1(user_info)
+        return Response(hashed_info.hexdigest(), status=200)
 
 
 class UniversityViewSet(viewsets.ReadOnlyModelViewSet):
