@@ -54,9 +54,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         hashed_info = sha1(user_info)
         data = {
             'user_id': user.id,
-            'token': hashed_info
+            'token': hashed_info.hexdigest()
         }
-        return Response(data.hexdigest(), status=200)
+        return Response(data, status=200)
 
     @action(
         detail=False,
