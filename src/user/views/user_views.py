@@ -49,7 +49,7 @@ from user.models import (
     Follow,
 )
 from user.permissions import UpdateAuthor, Censor
-from user.utils import reset_latest_acitvity_cache
+from user.utils import reset_latest_activity_cache
 from user.serializers import (
     AuthorSerializer,
     AuthorEditableSerializer,
@@ -307,12 +307,13 @@ class UserViewSet(viewsets.ModelViewSet):
         ordering = query_params.get('ordering', '-created_date')
         hub_ids = query_params.get('hub_ids', '')
         page_number = query_params.get('page', 1)
+        comments_only = query_params.get('comments_only', False)
 
-        cache_hit = self._get_latest_activity_cache_hit(request, hub_ids)
+        cache_hit = self._get_latest_activity_cache_hit(request, hub_ids, comments_only)
         if cache_hit and page_number == 1:
             return Response(cache_hit)
 
-        contributions = self._get_latest_activity_queryset(hub_ids, ordering)
+        contributions = self._get_latest_activity_queryset(hub_ids, ordering, comments_only)
 
         page = self.paginate_queryset(contributions)
         context = self._get_latest_activity_context()
@@ -332,18 +333,21 @@ class UserViewSet(viewsets.ModelViewSet):
         response = self.get_paginated_response(serializer.data)
 
         if not cache_hit and page_number == 1:
-            reset_latest_acitvity_cache(hub_ids, ordering)
+            reset_latest_activity_cache(hub_ids, ordering)
         return response
 
-    def _get_latest_activity_cache_hit(self, request, hub_ids):
+    def _get_latest_activity_cache_hit(self, request, hub_ids, comments_only):
         hub_ids_list = hub_ids.split(',')
+        cache_key_str = 'contributions'
+        if comments_only: 
+            cache_key_str = 'contributions_comments'
         if len(hub_ids_list) > 1:
             results = {}
             count = 0
             previous = ''
             next_url = request.build_absolute_uri()
             for hub_id in hub_ids_list:
-                cache_key = get_cache_key('contributions', hub_id)
+                cache_key = get_cache_key(cache_key_str, hub_id)
                 cache_hit = cache.get(cache_key)
                 if not cache_hit:
                     return None
@@ -370,17 +374,22 @@ class UserViewSet(viewsets.ModelViewSet):
             }
             return data
         else:
-            cache_key = get_cache_key('contributions', hub_ids)
+            cache_key = get_cache_key(cache_key_str, hub_ids)
             cache_hit = cache.get(cache_key)
             return cache_hit
 
-    def _get_latest_activity_queryset(self, hub_ids, ordering):
+    def _get_latest_activity_queryset(self, hub_ids, ordering, comments_only):
         # following_ids = user.following.values_list('followee')
         contribution_type = [
             Contribution.SUBMITTER,
             Contribution.COMMENTER,
             Contribution.SUPPORTER,
         ]
+
+        if comments_only:
+            contribution_type = [
+                Contribution.COMMENTER,
+            ]
 
         thread_content_type = ContentType.objects.get_for_model(Thread)
         comment_content_type = ContentType.objects.get_for_model(Comment)
@@ -458,6 +467,10 @@ class UserViewSet(viewsets.ModelViewSet):
                     'slug',
                     'text',
                     'title',
+                    'created_by',
+                    'plain_text',
+                    'parent',
+                    'created_date',
                 ]
             },
             'rep_dcs_get_unified_document': {

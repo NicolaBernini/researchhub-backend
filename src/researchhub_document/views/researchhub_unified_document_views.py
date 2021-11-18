@@ -47,7 +47,7 @@ from discussion.reaction_serializers import (
     VoteSerializer as ReactionVoteSerializer
 )
 from discussion.models import Vote as ReactionVote
-from user.utils import reset_latest_acitvity_cache
+from user.utils import reset_latest_activity_cache
 
 
 class ResearchhubUnifiedDocumentViewSet(ModelViewSet):
@@ -66,7 +66,7 @@ class ResearchhubUnifiedDocumentViewSet(ModelViewSet):
         hub_ids.append(0)
 
         reset_unified_document_cache(hub_ids)
-        reset_latest_acitvity_cache(
+        reset_latest_activity_cache(
             ','.join([str(hub_id) for hub_id in hub_ids])
         )
         invalidate_top_rated_cache(hub_ids)

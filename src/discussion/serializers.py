@@ -8,7 +8,7 @@ from discussion.reaction_serializers import (
 )
 from researchhub.settings import PAGINATION_PAGE_SIZE
 from researchhub.serializers import DynamicModelFieldSerializer
-from user.serializers import MinimalUserSerializer, DynamicUserSerializer
+from user.serializers import MinimalUserSerializer, DynamicUserSerializer, UserSerializer
 from utils.http import get_user_from_request
 # TODO: Make is_public editable for creator as a delete mechanism
 # TODO: undo
@@ -133,6 +133,7 @@ class DynamicCommentSerializer(
     GenericReactionSerializerMixin
 ):
     unified_document = serializers.SerializerMethodField()
+    created_by = UserSerializer()
 
     class Meta:
         model = Comment
@@ -157,6 +158,7 @@ class DynamicReplySerializer(
     GenericReactionSerializerMixin
 ):
     unified_document = serializers.SerializerMethodField()
+    created_by = UserSerializer()
 
     class Meta:
         model = Reply

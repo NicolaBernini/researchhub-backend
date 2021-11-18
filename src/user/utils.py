@@ -44,7 +44,7 @@ def merge_author_profiles(source, target):
     return source
 
 
-def reset_latest_acitvity_cache(
+def reset_latest_activity_cache(
     hub_ids='',
     ordering='-created_date',
     include_default=True,

@@ -51,6 +51,12 @@ router.register(
 )
 
 router.register(
+    r'comments',
+    discussion.views.CommentViewSet,
+    basename='comments'
+)
+
+router.register(
     r'paper/([0-9]+)/discussion/([0-9]+)/comment',
     discussion.views.CommentViewSet,
     basename='discussion_thread_comments'

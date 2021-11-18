@@ -30,7 +30,7 @@ from reputation.distributor import Distributor
 from reputation.exceptions import ReputationSignalError
 from reputation.models import Distribution, Contribution
 from summary.models import Summary, Vote as SummaryVote
-from user.utils import reset_latest_acitvity_cache
+from user.utils import reset_latest_activity_cache
 from utils import sentry
 
 # TODO: "Suspend" user if their reputation becomes negative
@@ -615,4 +615,4 @@ def preload_latest_activity(sender, instance, created, **kwargs):
             return
 
         hub_ids_str = ','.join([str(hub_id) for hub_id in hub_ids])
-        reset_latest_acitvity_cache(hub_ids_str)
+        reset_latest_activity_cache(hub_ids_str)

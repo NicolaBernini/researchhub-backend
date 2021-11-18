@@ -362,6 +362,49 @@ class CommentViewSet(viewsets.ModelViewSet, ReactionViewActionMixin):
         return super().downvote(*args, **kwargs)
 
 
+    @action(
+        detail=False,
+        methods=['get']
+    )
+    def check_user_vote(self, request):
+        comment_id_str = request.query_params.get('comment_ids', '')
+        comment_types_str = request.query_params.get('comment_types', '')
+        user = request.user
+        votes = []
+
+        if comment_id_str and comment_types_str:
+            comment_ids = comment_id_str.split(',')
+            comment_types = comment_types_str.split(',')
+        else:
+            return Response({
+                'error': 'No comment ids were sent!',
+                'comment_ids': comment_id_str,
+                'comment_types': comment_types_str
+                }, status=400)
+
+        if not user.is_authenticated:
+            for id in comment_ids:
+                votes.append(False)
+            return Response({'votes': votes})
+
+        for index, id in enumerate(comment_ids):
+            curr_comment_type = comment_types[index]
+
+            if curr_comment_type == 'thread':
+                comment = Thread.objects.get(id=int(id))
+            elif curr_comment_type == 'comment':
+                comment = Comment.objects.get(id=int(id))
+            elif curr_comment_type == 'reply':
+                comment = Reply.objects.get(id=int(id))
+
+            vote = comment.votes.filter(created_by=user)
+            if vote.exists():
+                votes.append(True)
+            else:
+                votes.append(False)
+
+        return Response({'votes': votes})
+
 class ReplyViewSet(viewsets.ModelViewSet, ReactionViewActionMixin):
     serializer_class = ReplySerializer
     throttle_classes = THROTTLE_CLASSES
