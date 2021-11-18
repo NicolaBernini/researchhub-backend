@@ -54,32 +54,32 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         hashed_info = sha1(user_info)
         return Response(hashed_info.hexdigest(), status=200)
 
-        @action(
-            detail=False,
-            methods=['post'],
-            permission_classes=[AllowAny]
-        )
-        def sync_jupyter_session(self, request, pk=None):
-            data = request.data
-            login_token = data.get('login_token')
-            session_id = data.get('session_id')
-            xsrf_token = data.get('xsrf_token')
-            content_type_name = data.get('content_type')
-            object_id = data.get('object_id')
-            content_type = ContentType.objects.get(model=content_type_name)
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[AllowAny]
+    )
+    def sync_jupyter_session(self, request, pk=None):
+        data = request.data
+        login_token = data.get('login_token')
+        session_id = data.get('session_id')
+        xsrf_token = data.get('xsrf_token')
+        content_type_name = data.get('content_type')
+        object_id = data.get('object_id')
+        content_type = ContentType.objects.get(model=content_type_name)
 
-            session = self.queryset.filter(
+        session = self.queryset.filter(
+            content_type=content_type,
+            object_id=object_id
+        )
+        if session.exists():
+            session = session.first()
+        else:
+            session = JupyterSession.objects.create(
                 content_type=content_type,
-                object_id=object_id
+                login_token=login_token,
+                object_id=object_id,
+                session_id=session_id,
+                xsrf_token=xsrf_token
             )
-            if session.exists():
-                session = session.first()
-            else:
-                session = JupyterSession.objects.create(
-                    content_type=content_type,
-                    login_token=login_token,
-                    object_id=object_id,
-                    session_id=session_id,
-                    xsrf_token=xsrf_token
-                )
-            return Response(status=200)
+        return Response(status=200)
