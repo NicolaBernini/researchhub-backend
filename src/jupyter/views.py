@@ -1,17 +1,25 @@
+import requests
+
 from hashlib import sha1
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from jupyter.models import JupyterSession
 from jupyter.serializers import JupyterSessionSerializer
 from note.models import Note
+from researchhub.settings import APP_ENV, JUPYTER_ADMIN_TOKEN
 from user.models import (
     Gatekeeper
 )
+
+
+BASE_JUPYTER_URL = 'https://staging-jupyter.researchhub.com'
+if 'production' in APP_ENV:
+    BASE_JUPYTER_URL = 'https://jupyter.researchhub.com' 
 
 
 class JupyterSessionViewSet(viewsets.ModelViewSet):
@@ -87,3 +95,32 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 xsrf_token=xsrf_token
             )
         return Response(status=200)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsAuthenticated]
+    )
+    def get_jupyterhub_file(self, request, pk=None):
+        data = request.data
+        file_name = data.get('file_name')
+        note = Note.objects.get(id=pk)
+        unified_document = note.unified_document
+        user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'
+
+        hashed_info = sha1(user_info)
+        token = hashed_info.hexdigest()
+        url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{file_name}'
+        headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
+        response = requests.get(
+            url,
+            headers=headers,
+            # allow_redirects=False
+        )
+        status_code = response.status_code
+        try:
+            data = response.json()
+        except Exception:
+            data = response.content
+
+        return Response({'data': data, 'status_code': status_code}, status=200)

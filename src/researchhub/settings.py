@@ -803,9 +803,24 @@ elif reward_time_hour:
 # Killswitch Variables
 SERIALIZER_SWITCH = os.environ.get('SERIALIZER_SWITCH', True)
 
-# CKEditor Cloud Services
-CKEDITOR_CLOUD_ACCESS_KEY = os.environ.get('CKEDITOR_CLOUD_ACCESS_KEY', keys.CKEDITOR_CLOUD_ACCESS_KEY)
-CKEDITOR_CLOUD_ENVIRONMENT_ID = os.environ.get('CKEDITOR_CLOUD_ENVIRONMENT_ID', keys.CKEDITOR_CLOUD_ENVIRONMENT_ID)
 
 # Async Service API Key
 ASYNC_SERVICE_API_KEY = os.environ.get("ASYNC_SERVICE_API_KEY", keys.ASYNC_SERVICE_API_KEY or 'testapikeyservice')
+
+
+# CKEditor Cloud Services
+CKEDITOR_CLOUD_ACCESS_KEY = os.environ.get(
+    'CKEDITOR_CLOUD_ACCESS_KEY',
+    keys.CKEDITOR_CLOUD_ACCESS_KEY
+)
+CKEDITOR_CLOUD_ENVIRONMENT_ID = os.environ.get(
+    'CKEDITOR_CLOUD_ENVIRONMENT_ID',
+    keys.CKEDITOR_CLOUD_ENVIRONMENT_ID
+)
+
+
+# Jupyter
+JUPYTER_ADMIN_TOKEN = os.environ.get(
+    'JUPYTER_ADMIN_TOKEN',
+    keys.JUPYTER_ADMIN_TOKEN
+)
