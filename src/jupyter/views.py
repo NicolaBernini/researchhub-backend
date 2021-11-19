@@ -133,3 +133,15 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             data = response.content
 
         return Response({'data': data, 'status_code': status_code}, status=200)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[AllowAny]
+    )
+    def jupyter_file_save_webhook(self, request, pk=None):
+        data = request.data
+        note = Note.objects.get(id=pk)
+
+        log_info(data)
+        return Response(status=200)
