@@ -56,9 +56,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         if note_id:
             note = Note.objects.get(id=note_id)
             unified_document = note.unified_document
-            user_info = f"""
-                NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}
-            """.encode('utf-8')
+            user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
         else:
             user_info = f'{user.id}-{user_email}'.encode('utf-8')
 
@@ -109,9 +107,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         file_name = data.get('file_name')
         note = Note.objects.get(id=pk)
         unified_document = note.unified_document
-        user_info = f"""
-            NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}
-        """.encode('utf-8')
+        user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
 
         hashed_info = sha1(user_info)
         token = hashed_info.hexdigest()
