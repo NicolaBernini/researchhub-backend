@@ -126,8 +126,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 if 'source' in cell:
                     cell['source'] = cell['source'].split('\n')
                 if 'outputs' in cell:
-                    if cell['outputs']['output_type'] == 'stream':
-                        cell['outputs']['text'] = cell['outputs']['text'].split('\n')
+                    for output in cell['outputs']:
+                        if output['output_type'] == 'stream':
+                            output['text'] = output['text'].split('\n')
         except Exception:
             data = response.content
 
