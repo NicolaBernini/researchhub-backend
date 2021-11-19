@@ -125,7 +125,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         status_code = response.status_code
         try:
             data = response.json()
-            content = data['content']
+            content = data['content']['cells']
             for cell in content:
                 if 'source' in cell:
                     cell['source'] = cell['source'].split('\n')
