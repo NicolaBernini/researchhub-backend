@@ -15,6 +15,7 @@ from researchhub.settings import APP_ENV, JUPYTER_ADMIN_TOKEN
 from user.models import (
     Gatekeeper
 )
+from utils.sentry import log_info
 
 
 BASE_JUPYTER_URL = 'https://staging-jupyter.researchhub.com'
@@ -58,6 +59,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'
         else:
             user_info = f'{user.id}-{user_email}'.encode('utf-8')
+
+        log_info(note_id)
 
         hashed_info = sha1(user_info)
         data = {
