@@ -143,5 +143,6 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         data = request.data
         note = Note.objects.get(id=pk)
 
-        log_info(data)
+        log_info('THIS ENDPOINT IS HERE')
+        # log_info(data)
         return Response(status=200)
