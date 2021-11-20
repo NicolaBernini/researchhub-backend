@@ -124,11 +124,11 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             content = data['content']['cells']
             for cell in content:
                 if 'source' in cell:
-                    cell['source'] = cell['source'].split('\n')
+                    cell['source'] = cell['source'].splitlines(keepends=True)
                 if 'outputs' in cell:
                     for output in cell['outputs']:
                         if output['output_type'] == 'stream':
-                            output['text'] = output['text'].split('\n')
+                            output['text'] = output['text'].splitlines(keepends=True)
         except Exception:
             data = response.content
 
