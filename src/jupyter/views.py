@@ -144,5 +144,6 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         note = Note.objects.get(id=pk)
 
         log_info('THIS ENDPOINT IS HERE')
+        print('test endpoint!--------------!')
         # log_info(data)
         return Response(status=200)
