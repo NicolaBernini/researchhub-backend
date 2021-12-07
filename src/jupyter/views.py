@@ -140,10 +140,13 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         permission_classes=[AllowAny]
     )
     def jupyter_file_save_webhook(self, request, pk=None):
-        data = request.data
-        note = Note.objects.get(id=pk)
+        print('------@@@@@@@@@_---------')
+        try:
+            note = Note.objects.get(id=pk)
+            data = request.data
+            cells = data.get('cells')
 
-        log_info('THIS ENDPOINT IS HERE')
-        print('test endpoint!--------------!')
-        # log_info(data)
+            note.notify_jupyter_file_update(cells)
+        except Exception:
+            pass
         return Response(status=200)
