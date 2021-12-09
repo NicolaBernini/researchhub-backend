@@ -1,5 +1,7 @@
 import requests
+import base64
 
+from cryptography.fernet import Fernet
 from hashlib import sha1
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import viewsets
@@ -57,13 +59,17 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             note = Note.objects.get(id=note_id)
             unified_document = note.unified_document
             user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
+            fernet = Fernet(
+                base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+            )
+            token = fernet.encrypt(user_info)
         else:
             user_info = f'{user.id}-{user_email}'.encode('utf-8')
-
-        hashed_info = sha1(user_info)
+            hashed_info = sha1(user_info)
+            token = hashed_info.hexdigest()
         data = {
             'user_id': user.id,
-            'token': hashed_info.hexdigest()
+            'token': token
         }
         return Response(data, status=200)
 
@@ -103,6 +109,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def get_jupyterhub_file(self, request, pk=None):
+        # TODO: update permissions
         data = request.data
         file_name = data.get('file_name')
         note = Note.objects.get(id=pk)
@@ -141,6 +148,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     )
     def jupyter_file_save_webhook(self, request, pk=None):
         print('------@@@@@@@@@_---------')
+        data = request.data
+        del data['content']
+        print(data)
         try:
             note = Note.objects.get(id=pk)
             data = request.data
