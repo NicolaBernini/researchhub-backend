@@ -1,7 +1,8 @@
-import requests
 import base64
+import re
+import requests
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from hashlib import sha1
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import viewsets
@@ -29,6 +30,23 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     queryset = JupyterSession.objects.all()
     serializer_class = JupyterSessionSerializer
     permission_classes = [AllowAny]
+
+    def _get_user_token(self, user_info):
+        fernet = Fernet(
+            base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+        )
+        token = fernet.encrypt(user_info)
+        return token
+
+    def _get_user_info_from_token(self, token):
+        try:
+            fernet = Fernet(
+                base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+            )
+            user_info = fernet.decrypt(token)
+        except InvalidToken:
+            return ''
+        return user_info
 
     @action(
         detail=True,
@@ -59,10 +77,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             note = Note.objects.get(id=note_id)
             unified_document = note.unified_document
             user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
-            fernet = Fernet(
-                base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
-            )
-            token = fernet.encrypt(user_info)
+            token = self._get_user_token(user_info)
         else:
             user_info = f'{user.id}-{user_email}'.encode('utf-8')
             hashed_info = sha1(user_info)
@@ -116,8 +131,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         unified_document = note.unified_document
         user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
 
-        hashed_info = sha1(user_info)
-        token = hashed_info.hexdigest()
+        token = self._get_user_token(user_info)
         url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{file_name}'
         headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.get(
@@ -144,19 +158,54 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['post'],
+        permission_classes=[IsAuthenticated]
+    )
+    def create_jupyterhub_file(self, request, pk=None):
+        # TODO: update permissions
+        data = request.data
+        file_name = data.get('file_name')
+        note = Note.objects.get(id=pk)
+        unified_document = note.unified_document
+        user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
+
+        token = self._get_user_token(user_info)
+        url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{file_name}'
+        headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
+        response = requests.post(
+            url,
+            headers=headers,
+            # allow_redirects=False
+        )
+        status_code = response.status_code
+        data = response.json()
+
+        return Response({'data': data, 'status_code': status_code}, status=200)
+
+    @action(
+        detail=True,
+        methods=['post'],
         permission_classes=[AllowAny]
     )
     def jupyter_file_save_webhook(self, request, pk=None):
-        print('------@@@@@@@@@_---------')
+        # TODO: Permissions - only allow requests within vpc or something
         data = request.data
-        del data['content']
-        print(data)
         try:
-            note = Note.objects.get(id=pk)
+            user_info = self._get_user_info_from_token(pk)
+            note_regex = r'(?<=NOTE-).*(?=-UNIFIED_DOC)'
+            # unified_doc_regex = r'(?<=UNIFIED_DOC-).*(?=)'
+            note_search = re.search(note_regex, user_info)
+
+            if not note_search:
+                return Response(status=200)
+            else:
+                note_id = note_search.group()
+            
+            note = Note.objects.get(id=note_id)
             data = request.data
             cells = data.get('cells')
 
             note.notify_jupyter_file_update(cells)
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
         return Response(status=200)
