@@ -1,26 +1,22 @@
 from django.db import models
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from utils.models import DefaultModel
 
 
 class JupyterSession(DefaultModel):
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE,
-    )
-    login_token = models.CharField(
-        max_length=256
-    )
-    object_id = models.PositiveIntegerField()
-    session_id = models.CharField(
-        max_length=64
-    )
-    source = GenericForeignKey(
-        'content_type',
-        'object_id'
-    )
-    xsrf_token = models.CharField(
-        max_length=64
-    )
+    filename = models.CharField(max_length=128)
+    uid = models.CharField(max_length=32)
+
+    def notify_jupyter_file_update(self, data):
+        uid = self.uid
+        room = f'JUPYTER_{uid}'
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            room,
+            {
+                'type': 'notify_jupyter_file_update',
+                'data': data,
+            }
+        )

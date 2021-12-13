@@ -31,11 +31,11 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     serializer_class = JupyterSessionSerializer
     permission_classes = [AllowAny]
 
-    def _get_user_token(self, user_info):
+    def _get_user_token(self, uid):
         fernet = Fernet(
             base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
         )
-        token = fernet.encrypt(user_info)
+        token = fernet.encrypt(uid)
         return token
 
     def _get_user_info_from_token(self, token):
@@ -54,69 +54,22 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         permission_classes=[AllowAny]
     )
     def get_jupyterhub_user(self, request, pk=None):
-        data = request.data
-        note_id = data.get('note_id')
-
-        tokens = Token.objects.filter(key=pk)
-        if not tokens.exists():
-            return Response(status=404)
-
-        token = tokens.first()
-        user = token.user
-        user_email = user.email
+        session = self.get_object()
 
         # Temporary gatekeeping for JupyterHub
-        gatekeeper = Gatekeeper.objects.filter(
-            email=user_email,
-            type='JUPYTER'
-        )
-        if not gatekeeper.exists():
-            return Response(status=404)
+        # gatekeeper = Gatekeeper.objects.filter(
+        #     email=user_email,
+        #     type='JUPYTER'
+        # )
+        # if not gatekeeper.exists():
+        #     return Response(status=404)
 
-        if note_id:
-            note = Note.objects.get(id=note_id)
-            unified_document = note.unified_document
-            user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
-            token = self._get_user_token(user_info)
-        else:
-            user_info = f'{user.id}-{user_email}'.encode('utf-8')
-            hashed_info = sha1(user_info)
-            token = hashed_info.hexdigest()
+        uid = session.uid
+        token = self._get_user_token(uid)
         data = {
-            'user_id': user.id,
             'token': token
         }
         return Response(data, status=200)
-
-    @action(
-        detail=False,
-        methods=['post'],
-        permission_classes=[AllowAny]
-    )
-    def sync_jupyter_session(self, request, pk=None):
-        data = request.data
-        login_token = data.get('login_token')
-        session_id = data.get('session_id')
-        xsrf_token = data.get('xsrf_token')
-        content_type_name = data.get('content_type')
-        object_id = data.get('object_id')
-        content_type = ContentType.objects.get(model=content_type_name)
-
-        session = self.queryset.filter(
-            content_type=content_type,
-            object_id=object_id
-        )
-        if session.exists():
-            session = session.first()
-        else:
-            session = JupyterSession.objects.create(
-                content_type=content_type,
-                login_token=login_token,
-                object_id=object_id,
-                session_id=session_id,
-                xsrf_token=xsrf_token
-            )
-        return Response(status=200)
 
     @action(
         detail=True,
@@ -127,11 +80,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         # TODO: update permissions
         data = request.data
         file_name = data.get('file_name')
-        note = Note.objects.get(id=pk)
-        unified_document = note.unified_document
-        user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
+        session = self.get_object()
 
-        token = self._get_user_token(user_info)
+        token = self._get_user_token(session.uid)
         url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{file_name}'
         headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.get(
@@ -164,11 +115,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         # TODO: update permissions
         data = request.data
         file_name = data.get('file_name')
-        note = Note.objects.get(id=pk)
-        unified_document = note.unified_document
-        user_info = f'NOTE-{note.id}-UNIFIED_DOC-{unified_document.id}'.encode('utf-8')
+        session = self.get_object()
 
-        token = self._get_user_token(user_info)
+        token = self._get_user_token(session.uid)
         url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{file_name}'
         headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.post(
@@ -190,21 +139,21 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         # TODO: Permissions - only allow requests within vpc or something
         data = request.data
         try:
-            user_info = self._get_user_info_from_token(pk)
-            note_regex = r'(?<=NOTE-).*(?=-UNIFIED_DOC)'
-            # unified_doc_regex = r'(?<=UNIFIED_DOC-).*(?=)'
-            note_search = re.search(note_regex, user_info)
+            # user_info = self._get_user_info_from_token(pk)
+            # note_regex = r'(?<=NOTE-).*(?=-UNIFIED_DOC)'
+            # # unified_doc_regex = r'(?<=UNIFIED_DOC-).*(?=)'
+            # note_search = re.search(note_regex, user_info)
 
-            if not note_search:
-                return Response(status=200)
-            else:
-                note_id = note_search.group()
+            # if not note_search:
+            #     return Response(status=200)
+            # else:
+            #     note_id = note_search.group()
             
-            note = Note.objects.get(id=note_id)
+            session = self.get_object()
             data = request.data
             cells = data.get('cells')
 
-            note.notify_jupyter_file_update(cells)
+            session.notify_jupyter_file_update(cells)
         except Exception as e:
             print(e)
             pass
