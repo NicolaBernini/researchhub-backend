@@ -38,7 +38,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         fernet = Fernet(
             base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
         )
-        uid = uid.encode('utf-8')
+
+        if type(uid) is not bytes:
+            uid = uid.encode('utf-8')
         token = fernet.encrypt(uid)
         return token
 
