@@ -51,9 +51,15 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        data['uid'] = get_random_string(length=32)
-        response = super().create(*args, **kwargs)
-        return response
+        filename = data.get('filename')
+        uid = get_random_string(length=32)
+        session = JupyterSession.objects.create(
+            uid=uid,
+            filename=filename
+        )
+        serializer = self.serializer_class(session)
+
+        return Response(serializer.data, status=200)
 
     @action(
         detail=True,
