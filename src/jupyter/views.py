@@ -35,13 +35,15 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     lookup_field = 'uid'
 
     def _get_user_token(self, uid):
-        fernet = Fernet(
-            base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
-        )
+        # fernet = Fernet(
+        #     base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+        # )
 
         if type(uid) is not bytes:
             uid = uid.encode('utf-8')
-        token = fernet.encrypt(uid)
+        # token = fernet.encrypt(uid)
+        hashed_info = sha1(uid)
+        token = hashed_info.hexdigest()
         return token
 
     def _get_user_info_from_token(self, token):
