@@ -5,6 +5,7 @@ import requests
 from cryptography.fernet import Fernet, InvalidToken
 from hashlib import sha1
 from django.contrib.contenttypes.models import ContentType
+from django.utils.crypto import get_random_string
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
@@ -47,6 +48,12 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         except InvalidToken:
             return ''
         return user_info
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        data['uid'] = get_random_string(length=32)
+        response = super().create(*args, **kwargs)
+        return response
 
     @action(
         detail=True,
