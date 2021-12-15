@@ -99,11 +99,11 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     def get_jupyterhub_file(self, request, uid=None):
         # TODO: update permissions
         data = request.data
-        file_name = data.get('filename')
+        filename = data.get('filename')
         session = self.get_object()
 
         token = self._get_user_token(session.uid)
-        url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{file_name}'
+        url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}'
         headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.get(
             url,
