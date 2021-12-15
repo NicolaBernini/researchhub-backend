@@ -5,6 +5,7 @@ import requests
 from cryptography.fernet import Fernet, InvalidToken
 from hashlib import sha1
 from django.contrib.contenttypes.models import ContentType
+from django.shortcuts import get_object_or_404
 from django.utils.crypto import get_random_string
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
@@ -31,11 +32,13 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     queryset = JupyterSession.objects.all()
     serializer_class = JupyterSessionSerializer
     permission_classes = [AllowAny]
+    lookup_field = 'uid'
 
     def _get_user_token(self, uid):
         fernet = Fernet(
             base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
         )
+        uid = uid.encode('utf-8')
         token = fernet.encrypt(uid)
         return token
 
@@ -66,7 +69,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[AllowAny]
     )
-    def get_jupyterhub_user(self, request, pk=None):
+    def get_jupyterhub_user(self, request, uid=None):
         session = self.get_object()
 
         # Temporary gatekeeping for JupyterHub
@@ -89,7 +92,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[IsAuthenticated]
     )
-    def get_jupyterhub_file(self, request, pk=None):
+    def get_jupyterhub_file(self, request, uid=None):
         # TODO: update permissions
         data = request.data
         file_name = data.get('file_name')
@@ -124,7 +127,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[IsAuthenticated]
     )
-    def create_jupyterhub_file(self, request, pk=None):
+    def create_jupyterhub_file(self, request, uid=None):
         # TODO: update permissions
         data = request.data
         file_name = data.get('file_name')
@@ -148,7 +151,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[AllowAny]
     )
-    def jupyter_file_save_webhook(self, request, pk=None):
+    def jupyter_file_save_webhook(self, request, uid=None):
         # TODO: Permissions - only allow requests within vpc or something
         data = request.data
         try:
