@@ -138,10 +138,11 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         session = self.get_object()
 
         token = self._get_user_token(session.uid)
-        url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}'
+        url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents/'
         headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.post(
             url,
+            json={'ext': '.ipynb'},
             headers=headers,
             # allow_redirects=False
         )
