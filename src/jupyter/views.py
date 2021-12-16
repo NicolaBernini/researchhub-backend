@@ -236,6 +236,15 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 )
 
             data = response.json()
+            content = data['content']['cells']
+            for cell in content:
+                if 'source' in cell:
+                    cell['source'] = cell['source'].splitlines(keepends=True)
+                if 'outputs' in cell:
+                    for output in cell['outputs']:
+                        if output['output_type'] == 'stream':
+                            output['text'] = output['text'].splitlines(keepends=True)
+
         except Exception as e:
             data = {'data': str(e)}
         return Response(
