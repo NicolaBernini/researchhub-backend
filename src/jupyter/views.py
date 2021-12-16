@@ -33,6 +33,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     serializer_class = JupyterSessionSerializer
     permission_classes = [AllowAny]
     lookup_field = 'uid'
+    jupyter_headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
 
     def _get_user_token(self, uid):
         # fernet = Fernet(
@@ -55,6 +56,44 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         except InvalidToken:
             return ''
         return user_info
+
+    def _check_jupyter_user_exists(self, token):
+        url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}'
+        response = requests.get(url=url, headers=self.jupyter_headers)
+        if response.status_code == 200:
+            return True
+        return False
+
+    def _create_jupyter_user(self, token):
+        url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}'
+        response = requests.post(url=url, headers=self.jupyter_headers)
+        if response.status_code == 201:
+            return response.json()
+        return response
+
+    def _start_jupyter_user_server(self, token):
+        url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}/server'
+        response = requests.post(url=url, headers=self.jupyter_headers)
+        status_code = response.status_code
+        if response.status_code == 202:
+            return True
+        elif status_code == 400:
+            return False
+        return response
+
+    def _get_jupyter_server_spawn_progress(self, token):
+        request_session = requests.Session()
+        url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}/server/progress'
+        with request_session.get(
+            url,
+            headers=self.jupyter_headers,
+            stream=True
+        ) as response:
+            if response.status_code == 200:
+                for line in response.iter_lines():
+                    if line:
+                        print(line)
+        return
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -104,10 +143,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
 
         token = self._get_user_token(session.uid)
         url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}'
-        headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.get(
             url,
-            headers=headers,
+            headers=self.jupyter_headers,
             # allow_redirects=False
         )
         status_code = response.status_code
@@ -139,17 +177,69 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
 
         token = self._get_user_token(session.uid)
         url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents/'
-        headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
         response = requests.post(
             url,
             json={'ext': '.ipynb'},
-            headers=headers,
+            headers=self.jupyter_headers,
             # allow_redirects=False
         )
         status_code = response.status_code
         data = response.json()
 
         return Response({'data': data, 'status_code': status_code}, status=200)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsAuthenticated]
+    )
+    def create_or_get_jupyterhub_session(self, request, uid=None):
+        # TODO: update permissions
+        data = request.data
+        filename = data.get('filename', 'Untitled')
+
+        session, created = JupyterSession.objects.get_or_create(
+            filename=filename,
+            uid=uid
+        )
+        token = self._get_user_token(uid)
+
+        try:
+            user_exists = self._check_jupyter_user_exists(token)
+
+            if not user_exists:
+                self._create_jupyter_user(token)
+
+            server_starting = self._start_jupyter_user_server(token)
+            if server_starting:
+                # return Response({'data': 'Server is starting'}, status=200)
+                self._get_jupyter_server_spawn_progress(token)
+
+            base_file_url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents'
+            headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
+
+            if created:
+                url = base_file_url
+                response = requests.post(
+                    url,
+                    json={'ext': '.ipynb'},
+                    headers=self.jupyter_headers,
+                    # allow_redirects=False
+                )
+            else:
+                url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}.ipynb'
+                response = requests.get(
+                    url,
+                    headers=headers
+                )
+
+            data = response.json()
+        except Exception as e:
+            data = {'data': str(e)}
+        return Response(
+            {'data': data, 'status_code': response.status_code},
+            status=200
+        )
 
     @action(
         detail=True,
