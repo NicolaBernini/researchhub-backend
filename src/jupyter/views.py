@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 import requests
 
@@ -89,10 +90,12 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             headers=self.jupyter_headers,
             stream=True
         ) as response:
+            response.raise_for_status()
             if response.status_code == 200:
                 for line in response.iter_lines():
-                    if line:
-                        print(line)
+                    line = line.decode('utf8', 'replace')
+                    if line.startswith('data:'):
+                        print(json.loads(line.split(':', 1)[1]))
         return
 
     def create(self, request, *args, **kwargs):
@@ -216,7 +219,6 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 self._get_jupyter_server_spawn_progress(token)
 
             base_file_url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents'
-            headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
 
             if created:
                 url = base_file_url
@@ -230,7 +232,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}.ipynb'
                 response = requests.get(
                     url,
-                    headers=headers
+                    headers=self.jupyter_headers
                 )
 
             data = response.json()
