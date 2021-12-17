@@ -7,6 +7,7 @@ from utils.models import DefaultModel
 
 class JupyterSession(DefaultModel):
     filename = models.CharField(max_length=128)
+    token = models.CharField(max_length=64)
     uid = models.CharField(max_length=32)
 
     def notify_jupyter_file_update(self, data):

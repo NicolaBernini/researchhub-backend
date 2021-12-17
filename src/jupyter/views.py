@@ -83,9 +83,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         return response
 
     def _get_jupyter_server_spawn_progress(self, token):
-        request_session = requests.Session()
         url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}/server/progress'
-        with request_session.get(
+        with requests.get(
             url,
             headers=self.jupyter_headers,
             stream=True
@@ -201,11 +200,12 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         data = request.data
         filename = data.get('filename', 'Untitled')
 
+        token = self._get_user_token(uid)
         session, created = JupyterSession.objects.get_or_create(
             filename=filename,
-            uid=uid
+            token=token,
+            uid=uid,
         )
-        token = self._get_user_token(uid)
 
         try:
             user_exists = self._check_jupyter_user_exists(token)
@@ -218,10 +218,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 # return Response({'data': 'Server is starting'}, status=200)
                 self._get_jupyter_server_spawn_progress(token)
 
-            base_file_url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents'
-
             if created:
-                url = base_file_url
+                url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents/'
                 response = requests.post(
                     url,
                     json={'ext': '.ipynb'},
@@ -257,7 +255,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[AllowAny]
     )
-    def jupyter_file_save_webhook(self, request, uid=None):
+    def jupyter_file_save_webhook(self, request, token=None):
         # TODO: Permissions - only allow requests within vpc or something
         data = request.data
         try:
@@ -271,7 +269,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             # else:
             #     note_id = note_search.group()
             
-            session = self.get_object()
+            session = self.queryset.get(token=token)
             data = request.data
             cells = data.get('cells')
 
