@@ -37,15 +37,15 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     jupyter_headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
 
     def _get_user_token(self, uid):
-        # fernet = Fernet(
-        #     base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
-        # )
+        fernet = Fernet(
+            base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+        )
 
         if type(uid) is not bytes:
             uid = uid.encode('utf-8')
-        # token = fernet.encrypt(uid)
-        hashed_info = sha1(uid)
-        token = hashed_info.hexdigest()
+        token = fernet.encrypt(uid)
+        # hashed_info = sha1(uid)
+        # token = hashed_info.hexdigest()
         return token
 
     def _get_user_info_from_token(self, token):
@@ -77,12 +77,14 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         response = requests.post(url=url, headers=self.jupyter_headers)
         status_code = response.status_code
         if response.status_code == 202:
+            # Server is spinning up
             return True
         elif status_code == 400:
+            # Server is already running
             return False
         return response
 
-    def _get_jupyter_server_spawn_progress(self, token):
+    def _get_jupyter_server_spawn_progress(self, session, token):
         url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}/server/progress'
         with requests.get(
             url,
@@ -94,7 +96,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                 for line in response.iter_lines():
                     line = line.decode('utf8', 'replace')
                     if line.startswith('data:'):
-                        print(json.loads(line.split(':', 1)[1]))
+                        data = json.loads(line.split(':', 1)[1])
+                        session.notify_jupyter_file_update(data) 
+                        print(data)
         return
 
     def create(self, request, *args, **kwargs):
@@ -195,7 +199,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[IsAuthenticated]
     )
-    def create_or_get_jupyterhub_session(self, request, uid=None):
+    def start_jupyter_user_server(self, request, uid=None):
         # TODO: update permissions
         data = request.data
         filename = data.get('filename', 'Untitled')
@@ -215,9 +219,28 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
 
             server_starting = self._start_jupyter_user_server(token)
             if server_starting:
-                # return Response({'data': 'Server is starting'}, status=200)
-                self._get_jupyter_server_spawn_progress(token)
+                self._get_jupyter_server_spawn_progress(session, token)
+                return Response(
+                    {'data': 'Server is running', 'user': created},
+                    status=200
+                )
+        except Exception as e:
+            data = {'data': str(e)}
+        return Response({'data': data}, status=200)            
 
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsAuthenticated]
+    )
+    def create_or_get_jupyterhub_session(self, request, uid=None):
+        # TODO: update permissions
+        data = request.data
+        filename = data.get('filename', 'Untitled')
+        created = data.get('created', True)
+
+        token = self._get_user_token(uid)
+        try:
             if created:
                 url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents/'
                 response = requests.post(
@@ -269,8 +292,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             # else:
             #     note_id = note_search.group()
             
-            session = self.queryset.get(token=uid)
-            data = request.data
+            uid = self._get_user_info_from_token(uid)
+            session = self.queryset.get(uid=uid)
             content = data.get('content')
             cells = content['cells']
             for cell in cells:

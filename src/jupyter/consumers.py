@@ -35,3 +35,12 @@ class JupyterConsumer(WebsocketConsumer):
             'data': data,
         }
         self.send(text_data=json.dumps(data))
+
+    def notify_jupyter_server_progress(self, event):
+        # Send message to webSocket (Frontend)
+        data = event['data']
+        data = {
+            'type': 'loading_progress',
+            'data': data,
+        }
+        self.send(text_data=json.dumps(data))

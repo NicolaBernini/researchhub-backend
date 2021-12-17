@@ -10,6 +10,18 @@ class JupyterSession(DefaultModel):
     token = models.CharField(max_length=64)
     uid = models.CharField(max_length=32)
 
+    def notify_jupyter_server_progress(self, data):
+        uid = self.uid
+        room = f'JUPYTER_{uid}'
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            room,
+            {
+                'type': 'notify_jupyter_server_progress',
+                'data': data,
+            }
+        )
+
     def notify_jupyter_file_update(self, data):
         uid = self.uid
         room = f'JUPYTER_{uid}'
