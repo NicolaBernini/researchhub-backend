@@ -8,7 +8,7 @@ class JupyterConsumer(WebsocketConsumer):
     def connect(self):
         kwargs = self.scope['url_route']['kwargs']
 
-        uid = kwargs['jupyter_uid']
+        uid = kwargs['uid']
         room = f'JUPYTER_{uid}'
         self.room_group_name = room
 
