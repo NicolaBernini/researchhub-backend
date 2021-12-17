@@ -221,7 +221,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                     token
                 ):
                     print(event)
-                    session.notify_jupyter_file_update(event)
+                    session.notify_jupyter_server_progress(event)
                     if event.get('ready'):
                         break
 
