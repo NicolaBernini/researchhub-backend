@@ -271,9 +271,17 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             
             session = self.queryset.get(token=uid)
             data = request.data
-            cells = data.get('content')
+            content = data.get('content')
+            cells = content['cells']
+            for cell in cells:
+                if 'source' in cell:
+                    cell['source'] = cell['source'].splitlines(keepends=True)
+                if 'outputs' in cell:
+                    for output in cell['outputs']:
+                        if output['output_type'] == 'stream':
+                            output['text'] = output['text'].splitlines(keepends=True)
 
-            session.notify_jupyter_file_update(cells)
+            session.notify_jupyter_file_update(content)
         except Exception as e:
             print(e)
             pass
