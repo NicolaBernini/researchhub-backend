@@ -37,15 +37,15 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     jupyter_headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
 
     def _get_user_token(self, uid):
-        fernet = Fernet(
-            base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
-        )
+        # fernet = Fernet(
+        #     base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+        # )
 
         if type(uid) is not bytes:
             uid = uid.encode('utf-8')
-        token = fernet.encrypt(uid)
-        # hashed_info = sha1(uid)
-        # token = hashed_info.hexdigest()
+        # token = fernet.encrypt(uid)
+        hashed_info = sha1(uid)
+        token = hashed_info.hexdigest()
         return token
 
     def _get_user_info_from_token(self, token):
@@ -292,8 +292,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             # else:
             #     note_id = note_search.group()
             
-            uid = self._get_user_info_from_token(uid)
-            session = self.queryset.get(uid=uid)
+            # uid = self._get_user_info_from_token(uid)
+            session = self.queryset.get(token=uid)
             content = data.get('content')
             cells = content['cells']
             for cell in cells:
