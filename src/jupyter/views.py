@@ -84,22 +84,20 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             return False
         return response
 
-    def _get_jupyter_server_spawn_progress(self, session, token):
+    def _get_jupyter_server_spawn_progress(self, token):
         url = f'{BASE_JUPYTER_URL}/hub/api/users/{token}/server/progress'
-        with requests.get(
+        response = requests.get(
             url,
             headers=self.jupyter_headers,
             stream=True
-        ) as response:
-            response.raise_for_status()
-            if response.status_code == 200:
-                for line in response.iter_lines():
-                    line = line.decode('utf8', 'replace')
-                    if line.startswith('data:'):
-                        data = json.loads(line.split(':', 1)[1])
-                        session.notify_jupyter_file_update(data) 
-                        print(data)
-        return
+        )
+        response.raise_for_status()
+
+        for line in response.iter_lines():
+            line = line.decode('utf8', 'replace')
+            if line.startswith('data:'):
+                data = json.loads(line.split(':', 1)[1])
+                yield data
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -219,7 +217,14 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
 
             server_starting = self._start_jupyter_user_server(token)
             if server_starting:
-                self._get_jupyter_server_spawn_progress(session, token)
+                for event in self._get_jupyter_server_spawn_progress(
+                    token
+                ):
+                    print(event)
+                    session.notify_jupyter_file_update(event)
+                    if event.get('ready'):
+                        break
+
                 return Response(
                     {'data': 'Server is running', 'user': created},
                     status=200
