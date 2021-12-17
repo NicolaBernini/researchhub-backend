@@ -255,7 +255,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[AllowAny]
     )
-    def jupyter_file_save_webhook(self, request, token=None):
+    def jupyter_file_save_webhook(self, request, uid=None):
         # TODO: Permissions - only allow requests within vpc or something
         data = request.data
         try:
@@ -269,9 +269,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             # else:
             #     note_id = note_search.group()
             
-            session = self.queryset.get(token=token)
+            session = self.queryset.get(token=uid)
             data = request.data
-            cells = data.get('cells')
+            cells = data.get('content')
 
             session.notify_jupyter_file_update(cells)
         except Exception as e:
