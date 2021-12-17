@@ -8,7 +8,7 @@ from utils.models import DefaultModel
 class JupyterSession(DefaultModel):
     filename = models.CharField(max_length=128)
     token = models.CharField(max_length=64)
-    uid = models.CharField(max_length=32)
+    uid = models.CharField(max_length=64)
 
     def notify_jupyter_server_progress(self, data):
         uid = self.uid
