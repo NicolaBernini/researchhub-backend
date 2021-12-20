@@ -314,3 +314,13 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
             print(e)
             pass
         return Response(status=200)
+
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[AllowAny]
+    )
+    def test(self, request):
+        data = request.data
+        print(data)
+        return Response(status=200)
