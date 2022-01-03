@@ -242,7 +242,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         # TODO: update permissions
         data = request.data
         filename = data.get('filename', 'Untitled')
-        created = data.get('created', True)
+        created = data.get('created', False)
 
         token = self._get_user_token(uid)
         try:
