@@ -19,7 +19,8 @@ from jupyter.serializers import JupyterSessionSerializer
 from note.models import Note
 from researchhub.settings import APP_ENV, JUPYTER_ADMIN_TOKEN
 from user.models import (
-    Gatekeeper
+    Gatekeeper,
+    Organization
 )
 from utils.sentry import log_info
 
@@ -33,20 +34,22 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     queryset = JupyterSession.objects.all()
     serializer_class = JupyterSessionSerializer
     permission_classes = [AllowAny]
+    # TODO: Update permission class
     lookup_field = 'uid'
     jupyter_headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
 
-    def _get_user_token(self, uid):
-        # fernet = Fernet(
-        #     base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
-        # )
+    def _get_user_token(self, org_id):
+        fernet = Fernet(
+            base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+        )
 
-        if type(uid) is not bytes:
-            uid = uid.encode('utf-8')
-        # token = fernet.encrypt(uid)
-        hashed_info = sha1(uid)
-        token = hashed_info.hexdigest()
+        uid = f'ORGANIZATION-{org_id}'.encode('utf8')
+        token = fernet.encrypt(uid)
         return token
+
+        # hashed_info = sha1(uid)
+        # token = hashed_info.hexdigest()
+        # return uid
 
     def _get_user_info_from_token(self, token):
         try:
@@ -102,8 +105,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
         filename = data.get('filename')
-        uid = get_random_string(length=32)
-        session = JupyterSession.objects.create(
+        org_id = data.get('org_id')
+        uid = f'ORGANIZATION-{org_id}'
+        session, _ = JupyterSession.objects.get_or_create(
             uid=uid,
             filename=filename
         )
@@ -116,8 +120,11 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[AllowAny]
     )
-    def get_jupyterhub_user(self, request, uid=None):
-        session = self.get_object()
+    def get_jupyterhub_user(self, request, token=None):
+        """
+        https://staging-jupyter.researchhub.com/login?researchhub-login=gAAAAABh3MhVwgHqJ-dDZpOszgC_q-34qyzMdNz1gx2dtAsb3d9TvjOs2-SVNUmsZoQNZS0whovQPRZmO8V7bG4Ozv9nE9u9DA==
+        """
+        session = self.queryset.get(token=token)
 
         # Temporary gatekeeping for JupyterHub
         # gatekeeper = Gatekeeper.objects.filter(
@@ -127,10 +134,13 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         # if not gatekeeper.exists():
         #     return Response(status=404)
 
-        uid = session.uid
-        token = self._get_user_token(uid)
+        # uid = session.uid
+        # token = self._get_user_token(uid)
+        org_id = session.uid.split('ORGANIZATION-')[1]
+        org = Organization.objects.get(id=org_id)
         data = {
-            'token': token
+            'token': org.name[:63]
+            # Jupyterhub usernames have a max length of 63
         }
         return Response(data, status=200)
 
@@ -139,13 +149,14 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[IsAuthenticated]
     )
-    def get_jupyterhub_file(self, request, uid=None):
+    def get_jupyterhub_file(self, request, org_id=None):
         # TODO: update permissions
         data = request.data
         filename = data.get('filename')
         session = self.get_object()
 
-        token = self._get_user_token(session.uid)
+        # token = self._get_user_token(org_id)
+        token = session.uid
         url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}'
         response = requests.get(
             url,
@@ -179,7 +190,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         filename = data.get('filename')
         session = self.get_object()
 
-        token = self._get_user_token(session.uid)
+        # token = self._get_user_token(session.uid)
+        token = session.uid
         url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents/'
         response = requests.post(
             url,
@@ -238,16 +250,16 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         methods=['post'],
         permission_classes=[IsAuthenticated]
     )
-    def create_or_get_jupyterhub_session(self, request, uid=None):
+    def create_or_get_jupyterhub_session(self, request, org_id=None):
         # TODO: update permissions
         data = request.data
         filename = data.get('filename', 'Untitled')
         created = data.get('created', False)
 
-        token = self._get_user_token(uid)
+        # token = self._get_user_token(org_id)
         try:
             if created:
-                url = f'{BASE_JUPYTER_URL}/user/{token}/api/contents/'
+                url = f'{BASE_JUPYTER_URL}/user/{org_id}/api/contents/'
                 response = requests.post(
                     url,
                     json={'ext': '.ipynb'},
@@ -255,7 +267,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
                     # allow_redirects=False
                 )
             else:
-                url = f'{BASE_JUPYTER_URL}/hub/user/{token}/api/contents/{filename}.ipynb'
+                url = f'{BASE_JUPYTER_URL}/hub/user/{org_id}/api/contents/{filename}.ipynb'
                 response = requests.get(
                     url,
                     headers=self.jupyter_headers
