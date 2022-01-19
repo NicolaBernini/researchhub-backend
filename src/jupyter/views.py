@@ -354,6 +354,16 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=False,
+        methods=['get'],
+        permission_classes=[AllowAny]
+    )
+    def get_jupyterhub_token(self, request):
+        # TODO: permissions
+        data = {'token': self.JUPYTER_ADMIN_TOKEN}
+        return Response(data, status=200)
+
+    @action(
+        detail=False,
         methods=['post'],
         permission_classes=[AllowAny]
     )
