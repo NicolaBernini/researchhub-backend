@@ -359,7 +359,7 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     )
     def get_jupyterhub_token(self, request):
         # TODO: permissions
-        data = {'token': self.JUPYTER_ADMIN_TOKEN}
+        data = {'token': JUPYTER_ADMIN_TOKEN}
         return Response(data, status=200)
 
     @action(
