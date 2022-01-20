@@ -370,8 +370,12 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     )
     def test(self, request):
         # import pdb; pdb.set_trace()
+        remote_addr = request.META.get('REMOTE_ADDR', 'no remote addr')
+        http_for = request.META.get('HTTP_X_FORWARDED_FOR', 'no http for')
         print(request.META)
-        log_info(request.META)
+
+        log_info(remote_addr)
+        log_info(http_for)
         data = request.data
         print(data)
         return Response(status=200)
