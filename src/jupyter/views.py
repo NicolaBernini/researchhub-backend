@@ -374,8 +374,8 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         http_for = request.META.get('HTTP_X_FORWARDED_FOR', 'no http for')
         print(request.META)
 
-        log_info(remote_addr)
-        log_info(http_for)
+        log_info(f'remote: {remote_addr}')
+        log_info(f'http for: {http_for}')
         data = request.data
         print(data)
         return Response(status=200)
