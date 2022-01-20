@@ -39,16 +39,17 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
     jupyter_headers = {'Authorization': f'Token {JUPYTER_ADMIN_TOKEN}'}
 
     def _get_user_token(self, uid):
-        # fernet = Fernet(
-        #     base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
-        # )
-
-        # uid = f'ORGANIZATION-{org_id}'.encode('utf8')
-        # token = fernet.encrypt(uid)
         if type(uid) is not bytes:
             uid = uid.encode('utf-8')
-        hashed_info = sha1(uid)
-        token = hashed_info.hexdigest()
+
+        fernet = Fernet(
+            base64.b64encode(JUPYTER_ADMIN_TOKEN.encode('utf-8'))
+        )
+
+        # uid = f'ORGANIZATION-{uid}'.encode('utf8')
+        token = fernet.encrypt(uid)
+        # hashed_info = sha1(uid)
+        # token = hashed_info.hexdigest()
         return token
 
     def _get_user_info_from_token(self, token):
@@ -368,6 +369,9 @@ class JupyterSessionViewSet(viewsets.ModelViewSet):
         permission_classes=[AllowAny]
     )
     def test(self, request):
+        # import pdb; pdb.set_trace()
+        print(request.META)
+        log_info(request.META)
         data = request.data
         print(data)
         return Response(status=200)
